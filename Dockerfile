@@ -1,16 +1,18 @@
-FROM php:8.2-apache
+FROM php:8.2-cli
 
 # Install PDO MySQL extension
 RUN docker-php-ext-install pdo pdo_mysql
 
-# Enable Apache mod_rewrite
-RUN a2enmod rewrite
+# Set working directory
+WORKDIR /app
 
-# Copy project files to Apache web root
-COPY . /var/www/html/
+# Copy project files
+COPY . /app/
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html/uploads \
-    || mkdir -p /var/www/html/uploads && chown -R www-data:www-data /var/www/html/uploads
+# Create uploads directory
+RUN mkdir -p /app/uploads && chmod 777 /app/uploads
 
-EXPOSE 80
+EXPOSE 8080
+
+# Use PHP built-in server instead of Apache
+CMD php -S 0.0.0.0:${PORT:-8080} -t /app
