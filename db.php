@@ -1,23 +1,17 @@
 <?php
 /**
  * db.php - PDO MySQL Connection
- *
- * Automatically works in BOTH environments:
- *  - Laragon (local)  → uses hardcoded fallback values below
- *  - Railway (live)   → reads environment variables automatically
- *
- * No changes needed when switching between local and Railway!
+ * Works on both Laragon (local) and Railway (production)
  */
 
 function getDBConnection(): PDO
 {
-    // Railway injects these env vars automatically.
-    // The fallback values (after ?:) are your Laragon local credentials.
-    $host     = getenv('MYSQL_HOST')     ?: 'localhost';
-    $dbname   = getenv('MYSQL_DATABASE') ?: 'gamedb';
-    $user     = getenv('MYSQL_USER')     ?: 'root';
-    $password = getenv('MYSQL_PASSWORD') ?: '';
-    $port     = getenv('MYSQL_PORT')     ?: '3306';
+    // Try multiple ways to read env vars (Railway compatibility)
+    $host     = $_ENV['MYSQL_HOST']     ?? getenv('MYSQL_HOST')     ?? 'localhost';
+    $dbname   = $_ENV['MYSQL_DATABASE'] ?? getenv('MYSQL_DATABASE') ?? 'gamedb';
+    $user     = $_ENV['MYSQL_USER']     ?? getenv('MYSQL_USER')     ?? 'root';
+    $password = $_ENV['MYSQL_PASSWORD'] ?? getenv('MYSQL_PASSWORD') ?? '';
+    $port     = $_ENV['MYSQL_PORT']     ?? getenv('MYSQL_PORT')     ?? '3306';
 
     $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
 
@@ -32,7 +26,7 @@ function getDBConnection(): PDO
         error_log('DB Connection Error: ' . $e->getMessage());
         die('<div style="font-family:monospace;padding:2rem;background:#0a0e1a;color:#e84545;min-height:100vh;">
             <strong>⚠ Database connection failed.</strong><br><br>
-            Check your credentials or Railway environment variables.
+            Error: ' . htmlspecialchars($e->getMessage()) . '
         </div>');
     }
 }
