@@ -1,13 +1,12 @@
 <?php
 /**
- * create.php - Add a new game
+ * create.php - Add a new game (uses image URL instead of file upload)
  */
 
 require_once 'db.php';
-require_once 'upload.php';
 
 $errors = [];
-$values = ['title'=>'','genre'=>'','developer'=>'','price'=>'','release_date'=>'','platform'=>'','rating'=>'','description'=>''];
+$values = ['title'=>'','genre'=>'','developer'=>'','price'=>'','release_date'=>'','platform'=>'','rating'=>'','description'=>'','cover_path'=>''];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -19,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $platform     = trim($_POST['platform']     ?? '');
     $rating       = trim($_POST['rating']       ?? '');
     $description  = trim($_POST['description']  ?? '');
+    $cover_path   = trim($_POST['cover_path']   ?? '');
 
     // --- Validation using empty() ---
     if (empty($title))        $errors['title']        = 'Game title is required.';
@@ -31,17 +31,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($rating))       $errors['rating']       = 'Rating is required.';
     elseif (!is_numeric($rating) || $rating < 0 || $rating > 10) $errors['rating'] = 'Rating must be 0–10.';
 
-    $cover_path = null;
-    if (!empty($_FILES['cover']['name'])) {
-        $uploaded = uploadImage($_FILES['cover']);
-        if ($uploaded === false) {
-            $errors['cover'] = 'Image upload failed. JPEG/PNG/GIF/WEBP under 5MB only.';
-        } else {
-            $cover_path = $uploaded;
-        }
+    // Validate URL if provided
+    if (!empty($cover_path) && !filter_var($cover_path, FILTER_VALIDATE_URL)) {
+        $errors['cover_path'] = 'Please enter a valid image URL.';
     }
 
-    $values = compact('title','genre','developer','price','release_date','platform','rating','description');
+    $values = compact('title','genre','developer','price','release_date','platform','rating','description','cover_path');
 
     if (empty($errors)) {
         $pdo  = getDBConnection();
@@ -58,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':platform'     => $platform,
             ':rating'       => (int) $rating,
             ':description'  => $description ?: null,
-            ':cover_path'   => $cover_path,
+            ':cover_path'   => $cover_path ?: null,
         ]);
         header('Location: index.php?created=1');
         exit;
@@ -94,32 +89,22 @@ $platformOptions = ['PC','PS5','PS4','Xbox Series X','Xbox One','Nintendo Switch
         .form-section:last-child { border-bottom:none; }
         .section-title { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:.85rem; color:var(--steam-teal); text-transform:uppercase; letter-spacing:.1em; margin-bottom:1rem; display:flex; align-items:center; gap:.4rem; }
         label { font-weight:500; font-size:.82rem; color:var(--steam-muted); margin-bottom:.35rem; display:block; text-transform:uppercase; letter-spacing:.05em; }
-        .form-control, .form-select, textarea.form-control {
-            background:#0d1626; border:1px solid var(--steam-border); color:var(--steam-text);
-            border-radius:4px; padding:.55rem .85rem; font-size:.92rem; font-family:'Barlow',sans-serif;
-            transition:border-color .2s, box-shadow .2s;
-        }
+        .form-control, .form-select, textarea.form-control { background:#0d1626; border:1px solid var(--steam-border); color:var(--steam-text); border-radius:4px; padding:.55rem .85rem; font-size:.92rem; font-family:'Barlow',sans-serif; transition:border-color .2s,box-shadow .2s; }
         .form-control:focus, .form-select:focus { background:#0d1626; color:var(--steam-bright); border-color:var(--steam-blue); box-shadow:0 0 0 3px rgba(27,154,239,.15); outline:none; }
         .form-select option { background:#111827; }
         .invalid-feedback { display:block; font-size:.8rem; color:var(--steam-red); margin-top:.3rem; }
-        .image-dropzone { border:2px dashed var(--steam-border); border-radius:6px; padding:2rem; text-align:center; cursor:pointer; transition:border-color .2s,background .2s; position:relative; overflow:hidden; }
-        .image-dropzone:hover { border-color:var(--steam-blue); background:rgba(27,154,239,.04); }
-        .image-dropzone input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
-        .image-dropzone .icon { font-size:2rem; opacity:.3; display:block; margin-bottom:.5rem; }
-        .image-dropzone p { margin:0; font-size:.83rem; color:var(--steam-muted); }
-        #coverPreview { width:100%; max-height:220px; object-fit:cover; border-radius:6px; margin-top:1rem; display:none; border:1px solid var(--steam-border); }
         .form-footer { padding:1.2rem 1.5rem; border-top:1px solid var(--steam-border); display:flex; gap:.75rem; flex-wrap:wrap; }
         .btn-submit { background:linear-gradient(180deg,#4c9bcb 0%,var(--steam-blue2) 100%); color:#fff; border:none; border-radius:4px; padding:.6rem 1.8rem; font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1rem; letter-spacing:.5px; cursor:pointer; transition:filter .2s; display:inline-flex; align-items:center; gap:.4rem; }
         .btn-submit:hover { filter:brightness(1.15); }
         .btn-cancel { background:rgba(255,255,255,.06); color:var(--steam-text); border:1px solid var(--steam-border); border-radius:4px; padding:.6rem 1.3rem; font-family:'Rajdhani',sans-serif; font-weight:600; font-size:1rem; text-decoration:none; display:inline-flex; align-items:center; gap:.4rem; transition:background .2s; }
         .btn-cancel:hover { background:rgba(255,255,255,.1); color:var(--steam-bright); }
         .required-star { color:var(--steam-red); }
-        .price-free-hint { font-size:.78rem; color:var(--steam-muted); margin-top:.3rem; }
-
-        /* Rating slider */
         .rating-row { display:flex; align-items:center; gap:1rem; }
         #ratingDisplay { font-family:'Rajdhani',sans-serif; font-size:1.4rem; font-weight:700; color:var(--steam-gold); min-width:2.5rem; }
         input[type=range] { accent-color:var(--steam-blue); flex:1; }
+        #coverPreview { width:100%; max-height:220px; object-fit:cover; border-radius:6px; margin-top:1rem; display:none; border:1px solid var(--steam-border); }
+        .url-hint { font-size:.78rem; color:var(--steam-muted); margin-top:.35rem; }
+        .url-hint a { color:var(--steam-teal); }
     </style>
 </head>
 <body>
@@ -142,7 +127,7 @@ $platformOptions = ['PC','PS5','PS4','Xbox Series X','Xbox One','Nintendo Switch
 
     <div class="page-title"><i class="bi bi-plus-circle-fill" style="color:var(--steam-blue);"></i> Add New Game</div>
 
-    <form method="POST" action="create.php" enctype="multipart/form-data" novalidate>
+    <form method="POST" action="create.php" novalidate>
     <div class="form-card">
 
         <!-- Basic Info -->
@@ -207,15 +192,14 @@ $platformOptions = ['PC','PS5','PS4','Xbox Series X','Xbox One','Nintendo Switch
                             value="<?= htmlspecialchars($values['price']) ?>"
                             placeholder="0.00" min="0" step="0.01" style="padding-left:1.6rem;" />
                     </div>
-                    <div class="price-free-hint">Enter 0 for free-to-play games</div>
+                    <div class="url-hint">Enter 0 for free-to-play games</div>
                     <?php if(isset($errors['price'])): ?><div class="invalid-feedback"><?= $errors['price'] ?></div><?php endif; ?>
                 </div>
                 <div class="col-md-7">
                     <label>Rating (0–10) <span class="required-star">*</span></label>
                     <div class="rating-row">
                         <span id="ratingDisplay"><?= htmlspecialchars($values['rating']) ?: '0' ?></span>
-                        <input type="range" name="rating" id="ratingSlider"
-                            min="0" max="10" step="1"
+                        <input type="range" name="rating" id="ratingSlider" min="0" max="10" step="1"
                             value="<?= htmlspecialchars($values['rating']) ?: '0' ?>" />
                     </div>
                     <?php if(isset($errors['rating'])): ?><div class="invalid-feedback"><?= $errors['rating'] ?></div><?php endif; ?>
@@ -223,16 +207,19 @@ $platformOptions = ['PC','PS5','PS4','Xbox Series X','Xbox One','Nintendo Switch
             </div>
         </div>
 
-        <!-- Cover Image -->
+        <!-- Cover Image URL -->
         <div class="form-section">
             <div class="section-title"><i class="bi bi-image-fill"></i> Cover Image</div>
-            <div class="image-dropzone <?= isset($errors['cover'])?'border-danger':'' ?>">
-                <input type="file" name="cover" id="coverInput" accept="image/jpeg,image/png,image/gif,image/webp" />
-                <span class="icon">🖼️</span>
-                <p id="dropzoneText">Click or drag & drop a cover image<br><small>JPEG, PNG, GIF, WEBP — max 5MB</small></p>
+            <label>Image URL <span style="color:var(--steam-muted);font-size:.75rem;text-transform:none;">(optional)</span></label>
+            <input type="url" name="cover_path" id="coverUrl"
+                class="form-control <?= isset($errors['cover_path'])?'is-invalid':'' ?>"
+                value="<?= htmlspecialchars($values['cover_path']) ?>"
+                placeholder="https://example.com/game-cover.jpg" />
+            <?php if(isset($errors['cover_path'])): ?><div class="invalid-feedback"><?= $errors['cover_path'] ?></div><?php endif; ?>
+            <div class="url-hint">
+                💡 Tip: Find a cover image on Google → right-click → <strong>Copy image address</strong> → paste here
             </div>
-            <?php if(isset($errors['cover'])): ?><div class="invalid-feedback"><?= $errors['cover'] ?></div><?php endif; ?>
-            <img id="coverPreview" src="" alt="Preview" />
+            <img id="coverPreview" src="" alt="Cover preview" />
         </div>
 
         <div class="form-footer">
@@ -250,20 +237,21 @@ $platformOptions = ['PC','PS5','PS4','Xbox Series X','Xbox One','Nintendo Switch
     const display = document.getElementById('ratingDisplay');
     slider.addEventListener('input', () => { display.textContent = slider.value; });
 
-    // Cover preview
-    document.getElementById('coverInput').addEventListener('change', function () {
-        const file = this.files[0];
-        const preview = document.getElementById('coverPreview');
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = e => {
-                preview.src = e.target.result;
-                preview.style.display = 'block';
-                document.getElementById('dropzoneText').innerHTML = '<strong style="color:var(--steam-teal)">' + file.name + '</strong>';
-            };
-            reader.readAsDataURL(file);
+    // Live cover preview from URL
+    const coverUrl = document.getElementById('coverUrl');
+    const coverPreview = document.getElementById('coverPreview');
+    function updatePreview() {
+        const url = coverUrl.value.trim();
+        if (url) {
+            coverPreview.src = url;
+            coverPreview.style.display = 'block';
+            coverPreview.onerror = () => { coverPreview.style.display = 'none'; };
+        } else {
+            coverPreview.style.display = 'none';
         }
-    });
+    }
+    coverUrl.addEventListener('input', updatePreview);
+    updatePreview(); // show on page load if value exists
 </script>
 </body>
 </html>
